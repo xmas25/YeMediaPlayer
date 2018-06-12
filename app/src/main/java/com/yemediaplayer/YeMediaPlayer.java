@@ -11,7 +11,9 @@ import android.os.Handler;
 import android.support.annotation.RequiresApi;
 import android.util.Log;
 import android.view.SurfaceView;
+import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 
@@ -36,9 +38,10 @@ public class YeMediaPlayer{
     private Handler handler;
     private OnPlayListener playListener;
 
-    public YeMediaPlayer(Context ctx, SurfaceView surfaceView, int width, int height,
+    public YeMediaPlayer(Context ctx, MediaView mediaView, int width, int height,
                          boolean isScreenPortrait){
-        this.surfaceView = surfaceView;
+        this.surfaceView = mediaView.getSurfaceView();
+        Log.d("Test", mediaView.getWidth()+"******"+mediaView.getHeight());
         context = ctx;
         this.width = width;
         this.height = height;
@@ -138,7 +141,6 @@ public class YeMediaPlayer{
 
     public void onDestroy(){
         if (mediaPlayer != null && mediaPlayer.isPlaying()) {
-            handler.getLooper().quit();
             handler.removeCallbacksAndMessages(null);
             mediaPlayer.stop();
             mediaPlayer.release();
@@ -170,8 +172,24 @@ public class YeMediaPlayer{
         }
     };
 
+    /**
+     * 正在打开播放器
+     */
+    public void setMediaOpeningListener(OnOpeningListener listener){
+        mediaPlayer.setEventListener(event -> {
+            switch (event.type){
+                case MediaPlayer.Event.Opening:
+                    listener.opening();
+                    break;
+            }
+        });
+    }
 
-    public void setMediaPlayListener(OnPlayListener playListener){
+    /**
+     * 正在播放
+     * @param playListener
+     */
+    public void setMediaPlayingListener(OnPlayListener playListener){
         this.playListener = playListener;
         mediaPlayer.setEventListener(event -> {
             switch (event.type){
@@ -180,22 +198,42 @@ public class YeMediaPlayer{
                     break;
             }
         });
+    }
 
+    /**
+     * 播放停止
+     */
+    public void setMediaStoppedListener(OnStoppedListener listener){
+        mediaPlayer.setEventListener(event -> {
+            switch (event.type){
+                case MediaPlayer.Event.Stopped:
+                    listener.stop();
+                    break;
+            }
+        });
+    }
 
+    public interface OnOpeningListener{
+        void opening();
     }
 
     public interface OnPlayListener{
         void play(long currPos, long totalLength);
     }
 
+    public interface OnStoppedListener{
+        void stop();
+    }
+
     public void onConfigurationChanged(Configuration newConfig) {
         if (newConfig.orientation==Configuration.ORIENTATION_LANDSCAPE){
-            surfaceView.setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+            ((View)surfaceView.getParent()).setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT));
             mediaPlayer.getVLCVout().setWindowSize(context.getResources().getDisplayMetrics().widthPixels,
                     context.getResources().getDisplayMetrics().heightPixels);
         } else {
-            surfaceView.setLayoutParams(new FrameLayout.LayoutParams(width, height));
+            //设置当前窗体为全屏显示
+            ((View)surfaceView.getParent()).setLayoutParams(new FrameLayout.LayoutParams(width, height));
             mediaPlayer.getVLCVout().setWindowSize(width, height);
         }
 
